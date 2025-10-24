@@ -1,0 +1,53 @@
+# BIOS / System Information - Output Only (NinjaOne safe)
+
+function Convert-WmiDate {
+  param([string]$WmiDate)
+  if ([string]::IsNullOrWhiteSpace($WmiDate)) { return $null }
+  try { [System.Management.ManagementDateTimeConverter]::ToDateTime($WmiDate) } catch { $null }
+}
+
+$bios  = Get-CimInstance Win32_BIOS
+$cs    = Get-CimInstance Win32_ComputerSystem
+$prod  = Get-CimInstance Win32_ComputerSystemProduct
+$board = Get-CimInstance Win32_BaseBoard
+$enc   = Get-CimInstance Win32_SystemEnclosure
+$os    = Get-CimInstance Win32_OperatingSystem
+
+$tpm = Get-CimInstance -Namespace root\CIMV2\Security\MicrosoftTpm -Class Win32_Tpm -ErrorAction SilentlyContinue
+$sb  = Get-CimInstance -Namespace root\Microsoft\Windows\SecureBoot -Class MS_SecureBoot -ErrorAction SilentlyContinue
+
+$biosVersion = if ($bios.SMBIOSBIOSVersion) { $bios.SMBIOSBIOSVersion }
+               elseif ($bios.BIOSVersion)    { ($bios.BIOSVersion -join ' ') }
+               else                          { $null }
+
+$secureBootEnabled = $null
+if ($sb -and $sb.SecureBootEnabled -ne $null) {
+  $secureBootEnabled = [bool]$sb.SecureBootEnabled
+} else {
+  try { $secureBootEnabled = [bool](Confirm-SecureBootUEFI -ErrorAction Stop) } catch { }
+}
+
+$report = [pscustomobject]@{
+  ComputerName       = $env:COMPUTERNAME
+  Manufacturer       = $cs.Manufacturer
+  Model              = $cs.Model
+  SerialNumber       = $prod.IdentifyingNumber
+  UUID               = $prod.UUID
+  AssetTag           = $enc.SMBIOSAssetTag
+  BIOS_Manufacturer  = $bios.Manufacturer
+  BIOS_Version       = $biosVersion
+  BIOS_ReleaseDate   = Convert-WmiDate $bios.ReleaseDate
+  BaseBoard          = "$($board.Manufacturer) $($board.Product)"
+  BaseBoard_Serial   = $board.SerialNumber
+  SecureBootEnabled  = $secureBootEnabled
+  TPM_Enabled        = $tpm.IsEnabled_InitialValue
+  TPM_Ready          = $tpm.IsReady_InitialValue
+  TimeStamp          = Get-Date
+  OS_Name            = $os.Caption
+  OS_Version         = $os.Version
+  OS_InstallDate     = Convert-WmiDate $os.InstallDate
+  OS_Architecture    = $os.OSArchitecture
+}
+
+"===== BIOS REPORT: $($report.ComputerName) ====="
+$report | Format-List

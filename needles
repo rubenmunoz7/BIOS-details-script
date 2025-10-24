@@ -3,15 +3,18 @@
 # ITStuntman
 # Clear Needles user configuration so Needles is fresh on launch
 
+$exclude = 'Public', 'Default', 'Default User', 'All Users', 'WDAGUtilityAccount' # Exclude these file paths
 $profiles = Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | 
             Where-Object {$exclude -notcontains $_.Name }
 
 # File paths
 $targets = foreach ($p in $profiles) {
-    Join-Path $p.FullName 'Appdata\Roaming\Needles\configuration.bin'
+    Join-Path $p.FullName 'AppData\Roaming\Needles\configuration.bin'
 }
 
 $targets += (Join-Path $env:APPDATA 'Needles\configuration.bin')
+
+$targets | Select-Object -Unique | ForEach-Object {
     $cfg = $_
     try {
         if (Test-Path -LiteralPath $cfg) {
@@ -27,3 +30,4 @@ $targets += (Join-Path $env:APPDATA 'Needles\configuration.bin')
     } catch {
         Write-Output "Failed to delete $cfg - $($_.Exception.Message)" # Output message
     }
+}

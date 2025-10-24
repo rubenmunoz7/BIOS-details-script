@@ -1,20 +1,29 @@
-# # Needles Cleanup Script
+# Needles Cleanup Script
 # Ruben Munoz 10/9/2025
 # ITStuntman
-# Clear Needles user "configuration.bin" at every logon. Safe to run every logon.
+# Clear Needles user configuration so Needles is fresh on launch
 
-# Deletes the configuration.bin at user logon
-$cfg = Join-Path $env:APPDATA 'Needles\configuration.bin'
-# Show output if deleted, else, write not found. If it fails to delete, it will show in the output.
-try { 
-    if (Test-Path -LiteralPath $cfg) { 
-        Remove-Item -LiteralPath $cfg -Force -ErrorAction Stop # Removes item (config.bin)
-        Write-Output "Deleted: $cfg"  # Output for successful deletion
-    } else {
-        Write-Output "Not found: $cfg" # Output for file not found
-    }
-} catch {
-    Write-Output "Failed to delete $cfg - $($_.Exception.Message)" # Output for failure to delete the file
+$profiles = Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue | 
+            Where-Object {$exclude -notcontains $_.Name }
+
+# File paths
+$targets = foreach ($p in $profiles) {
+    Join-Path $p.FullName 'Appdata\Roaming\Needles\configuration.bin'
 }
 
-exit 0
+$targets += (Join-Path $env:APPDATA 'Needles\configuration.bin')
+    $cfg = $_
+    try {
+        if (Test-Path -LiteralPath $cfg) {
+            $item = Get-Item -LiteralPath $cfg -Force
+            if ($item.Attributes -band [IO.FileAttributes]::ReadOnly) {
+                $item.Attributes = $item.Attributes -bxor [IO.FileAttributes]::ReadOnly
+            }
+            Remove-Item -LiteralPath $cfg -Force -ErrorAction Stop
+            Write-Output "Deleted: $cfg" # Output message
+        } else {
+            Write-Output "Not found: $cfg" # Output message
+        }
+    } catch {
+        Write-Output "Failed to delete $cfg - $($_.Exception.Message)" # Output message
+    }

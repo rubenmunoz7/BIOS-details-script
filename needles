@@ -1,0 +1,20 @@
+# # Needles Cleanup Script
+# Ruben Munoz 10/9/2025
+# ITStuntman
+# Clear Needles user "configuration.bin" at every logon. Safe to run every logon.
+
+# Deletes the configuration.bin at user logon
+$cfg = Join-Path $env:APPDATA 'Needles\configuration.bin'
+# Show output if deleted, else, write not found. If it fails to delete, it will show in the output.
+try { 
+    if (Test-Path -LiteralPath $cfg) { 
+        Remove-Item -LiteralPath $cfg -Force -ErrorAction Stop # Removes item (config.bin)
+        Write-Output "Deleted: $cfg"  # Output for successful deletion
+    } else {
+        Write-Output "Not found: $cfg" # Output for file not found
+    }
+} catch {
+    Write-Output "Failed to delete $cfg - $($_.Exception.Message)" # Output for failure to delete the file
+}
+
+exit 0
